@@ -1,5 +1,6 @@
 package io.github.k0ctejl.translations
 
+import kotlin.io.path.createDirectories
 import kotlin.io.path.createTempDirectory
 import kotlin.io.path.deleteExisting
 import kotlin.io.path.div
@@ -139,5 +140,39 @@ class TranslatorTest {
     @Test
     fun `translateLines returns the raw key as a single-element list when undefined`() {
         assertEquals(listOf("nonexistent.key"), translator().translateLines("nonexistent.key"))
+    }
+
+    @Test
+    fun `loadLanguage merges every lang file in a directory under one locale`() {
+        val dir = createTempDirectory("kotlintranslations-test")
+        try {
+            val enDir = (dir / "en").createDirectories()
+            (enDir / "messages.lang").writeText("""greeting="Hello, {0}!"""")
+            (enDir / "commands.lang").writeText("""help="Type /help for a list of commands."""")
+            (enDir / "notes.txt").writeText("ignored, wrong extension")
+
+            val t = Translator.create("en").loadLanguage("en", enDir)
+
+            assertEquals("Hello, Bob!", t.translate("greeting", "Bob"))
+            assertEquals("Type /help for a list of commands.", t.translate("help"))
+        } finally {
+            dir.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `loadLanguage throws when the same key is defined in two files of a directory`() {
+        val dir = createTempDirectory("kotlintranslations-test")
+        try {
+            val enDir = (dir / "en").createDirectories()
+            (enDir / "a.lang").writeText("""greeting="Hi"""")
+            (enDir / "b.lang").writeText("""greeting="Hello"""")
+
+            assertFailsWith<IllegalArgumentException> {
+                Translator.create("en").loadLanguage("en", enDir)
+            }
+        } finally {
+            dir.toFile().deleteRecursively()
+        }
     }
 }

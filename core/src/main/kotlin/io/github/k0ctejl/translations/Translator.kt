@@ -32,10 +32,21 @@ public class Translator private constructor(@Volatile public var defaultLocale: 
     public fun loadLanguage(locale: String, input: InputStream, charset: Charset = StandardCharsets.UTF_8): Translator =
         loadLanguage(locale, LangFileParser.parse(input, charset))
 
-    /** Parses the `.lang` file at [path] and registers it for [locale]. */
+    /**
+     * Parses the `.lang` file at [path] and registers it for [locale]. If [path] is a directory
+     * instead, every `*.lang` file directly inside it (not recursive) is parsed and merged into
+     * a single catalog registered for [locale] - handy for splitting one language across several
+     * files, e.g. `lang/en/messages.lang`, `lang/en/commands.lang`:
+     *
+     * ```kotlin
+     * Translator.create("en").loadLanguage("en", Path.of("lang/en/"))
+     * ```
+     *
+     * A key defined in more than one file throws [IllegalArgumentException].
+     */
     @JvmOverloads
     public fun loadLanguage(locale: String, path: Path, charset: Charset = StandardCharsets.UTF_8): Translator =
-        loadLanguage(locale, LangFileParser.parse(path, charset))
+        loadLanguage(locale, if (Files.isDirectory(path)) readDirectory(path, charset) else LangFileParser.parse(path, charset))
 
     /**
      * Loads every `*.lang` file directly inside [directory], deriving each locale from its file
@@ -43,13 +54,8 @@ public class Translator private constructor(@Volatile public var defaultLocale: 
      */
     @JvmOverloads
     public fun loadLanguagesFromDirectory(directory: Path, charset: Charset = StandardCharsets.UTF_8): Translator {
-        if (!Files.isDirectory(directory)) {
-            throw IllegalArgumentException("Not a directory: $directory")
-        }
-        Files.newDirectoryStream(directory, "*.lang").use { entries ->
-            for (path in entries) {
-                loadLanguage(path.nameWithoutExtension, path, charset)
-            }
+        for (path in listLangFiles(directory)) {
+            loadLanguage(path.nameWithoutExtension, path, charset)
         }
         return this
     }
@@ -126,4 +132,26 @@ public class Translator private constructor(@Volatile public var defaultLocale: 
         @JvmOverloads
         public fun create(defaultLocale: String = "en"): Translator = Translator(defaultLocale)
     }
+}
+
+/** Every `*.lang` file directly inside [directory] (not recursive), sorted by file name for deterministic loading order. */
+private fun listLangFiles(directory: Path): List<Path> {
+    if (!Files.isDirectory(directory)) {
+        throw IllegalArgumentException("Not a directory: $directory")
+    }
+    return Files.newDirectoryStream(directory, "*.lang").use { it.toList() }.sortedBy { it.fileName.toString() }
+}
+
+/** Parses every `*.lang` file directly inside [directory] and merges them into one map, rejecting a key defined twice. */
+private fun readDirectory(directory: Path, charset: Charset): Map<String, String> {
+    val merged = LinkedHashMap<String, String>()
+    for (path in listLangFiles(directory)) {
+        for ((key, value) in LangFileParser.parse(path, charset)) {
+            if (merged.containsKey(key)) {
+                throw IllegalArgumentException("Duplicate key '$key' in $path - already defined by another file in $directory")
+            }
+            merged[key] = value
+        }
+    }
+    return merged
 }

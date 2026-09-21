@@ -61,9 +61,24 @@ A key missing for a specific locale automatically falls back to `defaultLocale`.
 
 ## Loading a whole directory
 
-Instead of calling `loadLanguage` once per locale, point `loadLanguagesFromDirectory` at a
-folder of `.lang` files — each file's locale is taken from its name (`lang/en.lang` → `en`,
-`lang/ru.lang` → `ru`). Not recursive; non-`.lang` files are ignored.
+`loadLanguage` also accepts a directory instead of a single file: every `*.lang` file directly
+inside it (not recursive) is parsed and merged into one catalog for the given locale — handy for
+splitting one language across several files instead of one giant `.lang`:
+
+```
+lang/en/messages.lang
+lang/en/commands.lang
+```
+
+```kotlin
+val translator = Translator.create("en").loadLanguage("en", Path.of("lang/en/"))
+```
+
+A key defined in more than one file of the directory throws `IllegalArgumentException`.
+
+To go the other way — one file per locale, several locales at once — point
+`loadLanguagesFromDirectory` at a folder of `.lang` files; each file's locale is taken from its
+name (`lang/en.lang` → `en`, `lang/ru.lang` → `ru`):
 
 ```kotlin
 val translator = Translator.create("en").loadLanguagesFromDirectory(Path.of("lang"))
@@ -132,6 +147,37 @@ and `sendTranslationLines` sends them as separate chat messages:
 // motd="Welcome, <gold>{0}</gold>!\nType /help to get started."
 player.sendTranslationLines(messages, "motd", Component.text(player.name))
 ```
+
+## Custom MiniMessage tags
+
+`loadTags` reads a `.lang`-format file and registers every entry as a MiniMessage tag, so
+`<key>` becomes usable in any literal `.lang` text - no extra wiring needed, every
+`ComponentTranslator` built from this `Translator` picks the tags up automatically:
+
+```
+# lang/values.lang
+lumen_green="#297D3F"
+prefix="<gray>[<gold>Server</gold>]</gray> "
+```
+
+```kotlin
+val translator = Translator.create("en")
+    .loadLanguage("en", Path.of("lang/en.lang"))
+    .loadTags(Path.of("lang/values.lang"))
+
+val messages = ComponentTranslator(translator) // already knows <lumen_green> and <prefix>
+
+// greeting="<lumen_green>Hello</lumen_green>, {0}!"
+// announce="<prefix>Server restarting in {0} minutes."
+```
+
+A value that looks like a hex color (`#rrggbb` or `rrggbb`) becomes a real color tag - not just
+literal text - so `<lumen_green>text</lumen_green>` actually colors `text`. Any other value is
+inserted as-is and re-parsed as MiniMessage, so it can itself contain markup (like `prefix`
+above). Tags are looked up by `ComponentTranslator`/`ComponentTranslator.miniMessage(...)`; pass
+an explicit `MiniMessage` instance to `ComponentTranslator.miniMessage(translator, mm)` to opt
+out. `ComponentTranslator.legacy(...)` doesn't use MiniMessage at all, so custom tags don't apply
+there.
 
 ## Player locale
 

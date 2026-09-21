@@ -61,9 +61,25 @@ String ruMessage = translator.translateFor("ru", "greeting", "Bob", 5);
 
 ## Загрузка целой директории
 
-Вместо вызова `loadLanguage` для каждой локали отдельно можно указать `loadLanguagesFromDirectory`
-на папку с `.lang`-файлами — локаль каждого файла берётся из его имени (`lang/en.lang` → `en`,
-`lang/ru.lang` → `ru`). Без рекурсии; файлы не с расширением `.lang` игнорируются.
+`loadLanguage` теперь принимает и директорию вместо одного файла: все `*.lang`-файлы прямо внутри
+неё (без рекурсии) разбираются и объединяются в один каталог для указанной локали — удобно,
+чтобы разбить один язык на несколько файлов вместо одного огромного `.lang`:
+
+```
+lang/en/messages.lang
+lang/en/commands.lang
+```
+
+```kotlin
+val translator = Translator.create("en").loadLanguage("en", Path.of("lang/en/"))
+```
+
+Если один и тот же ключ встречается больше чем в одном файле директории, выбрасывается
+`IllegalArgumentException`.
+
+Для обратного случая — один файл на локаль, сразу несколько локалей — используйте
+`loadLanguagesFromDirectory` на папку с `.lang`-файлами: локаль каждого файла берётся из его
+имени (`lang/en.lang` → `en`, `lang/ru.lang` → `ru`):
 
 ```kotlin
 val translator = Translator.create("en").loadLanguagesFromDirectory(Path.of("lang"))
@@ -132,6 +148,38 @@ val messages = ComponentTranslator.miniMessage(translator, myMiniMessageInstance
 // motd="Welcome, <gold>{0}</gold>!\nType /help to get started."
 player.sendTranslationLines(messages, "motd", Component.text(player.name))
 ```
+
+## Свои MiniMessage-теги
+
+`loadTags` читает файл в формате `.lang` и регистрирует каждую запись как MiniMessage-тег, так
+что `<key>` становится доступен в любом литеральном тексте `.lang` — без дополнительной настройки,
+каждый `ComponentTranslator`, построенный из этого `Translator`, подхватывает теги автоматически:
+
+```
+# lang/values.lang
+lumen_green="#297D3F"
+prefix="<gray>[<gold>Server</gold>]</gray> "
+```
+
+```kotlin
+val translator = Translator.create("en")
+    .loadLanguage("en", Path.of("lang/en.lang"))
+    .loadTags(Path.of("lang/values.lang"))
+
+val messages = ComponentTranslator(translator) // уже знает <lumen_green> и <prefix>
+
+// greeting="<lumen_green>Hello</lumen_green>, {0}!"
+// announce="<prefix>Server restarting in {0} minutes."
+```
+
+Значение, похожее на hex-цвет (`#rrggbb` или `rrggbb`), становится настоящим цветовым тегом — а
+не просто текстом — так что `<lumen_green>text</lumen_green>` реально красит `text`. Любое другое
+значение вставляется как есть и повторно разбирается как MiniMessage, так что может само содержать
+разметку (как `prefix` выше). Теги подхватываются `ComponentTranslator`/
+`ComponentTranslator.miniMessage(...)`; передайте явный инстанс `MiniMessage` в
+`ComponentTranslator.miniMessage(translator, mm)`, чтобы отказаться от этого. У
+`ComponentTranslator.legacy(...)` MiniMessage вообще не используется, поэтому свои теги там
+не применяются.
 
 ## Локаль игрока
 

@@ -5,6 +5,7 @@ import io.github.k0ctejl.translations.Translator
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.ComponentLike
 import net.kyori.adventure.text.minimessage.MiniMessage
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
 
 /**
@@ -18,11 +19,18 @@ import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
  * [legacy]. Placeholder arguments are inserted as-is via [ComponentLike], so callers can pass a
  * fully built [Component] - e.g. a player's display name with its own hover event - instead of a
  * plain string, and it survives the substitution untouched.
+ *
+ * The MiniMessage-based constructors ([ComponentTranslator] itself and [miniMessage]) resolve
+ * any tags [translator] has registered via [TagRegistry]/[Translator.loadTags] and merge them
+ * with MiniMessage's built-in tags, once at construction time - not on every render.
  */
 public class ComponentTranslator @JvmOverloads constructor(
     /** The underlying [Translator] this renderer wraps, e.g. for [Translator.isLoaded] checks. */
     public val translator: Translator,
-    private val deserializer: ComponentDeserializer = ComponentDeserializer { DEFAULT_MINI_MESSAGE.deserialize(it) }
+    private val deserializer: ComponentDeserializer = run {
+        val miniMessage = resolveMiniMessage(translator)
+        ComponentDeserializer { miniMessage.deserialize(it) }
+    }
 ) {
 
     /** Renders [key] using [Translator.defaultLocale]. Returns [key] as plain text if undefined. */
@@ -63,12 +71,14 @@ public class ComponentTranslator @JvmOverloads constructor(
     }
 
     public companion object {
-        private val DEFAULT_MINI_MESSAGE: MiniMessage = MiniMessage.miniMessage()
-
-        /** A [ComponentTranslator] that parses literal text as MiniMessage using [miniMessage]. */
+        /**
+         * A [ComponentTranslator] that parses literal text as MiniMessage using [miniMessage].
+         * Defaults to [translator]'s registered [TagRegistry] tags merged with the standard
+         * MiniMessage tags - pass an explicit [miniMessage] instance to opt out of that.
+         */
         @JvmStatic
         @JvmOverloads
-        public fun miniMessage(translator: Translator, miniMessage: MiniMessage = DEFAULT_MINI_MESSAGE): ComponentTranslator =
+        public fun miniMessage(translator: Translator, miniMessage: MiniMessage = resolveMiniMessage(translator)): ComponentTranslator =
             ComponentTranslator(translator, ComponentDeserializer { miniMessage.deserialize(it) })
 
         /** A [ComponentTranslator] that parses literal text as legacy `&`-coded strings, e.g. `&cHello`. */
@@ -79,4 +89,10 @@ public class ComponentTranslator @JvmOverloads constructor(
             return ComponentTranslator(translator, ComponentDeserializer { serializer.deserialize(it) })
         }
     }
+}
+
+/** The default MiniMessage instance for [translator]: standard tags, plus any it has registered in [TagRegistry]. */
+private fun resolveMiniMessage(translator: Translator): MiniMessage {
+    val custom = TagRegistry.get(translator) ?: return MiniMessage.miniMessage()
+    return MiniMessage.builder().tags(TagResolver.resolver(TagResolver.standard(), custom)).build()
 }
