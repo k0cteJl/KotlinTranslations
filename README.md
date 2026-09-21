@@ -81,6 +81,22 @@ check(issues.isEmpty()) { issues.joinToString("\n") }
 // ValidationIssue(locale=ru, missingKeys=[farewell], extraKeys=[])
 ```
 
+## Multi-line translations
+
+A `.lang` value can span multiple lines using the `\n` escape - handy for a MOTD, a help
+message, or any other block of text. `translateLines`/`translateLinesFor` translate it like
+`translate`/`translateFor`, then split the result into one entry per line:
+
+```
+# lang/en.lang
+motd="Welcome to the server, {0}!\nType /help to get started."
+```
+
+```kotlin
+translator.translateLines("motd", player.name)
+// ["Welcome to the server, Bob!", "Type /help to get started."]
+```
+
 ## Paper: Component integration
 
 ```kotlin
@@ -108,6 +124,43 @@ val messages = ComponentTranslator.legacy(translator) // parses "&cHello" instea
 val messages = ComponentTranslator.legacy(translator, character = '§')
 val messages = ComponentTranslator.miniMessage(translator, myMiniMessageInstance)
 ```
+
+A multi-line value renders each line as its own `Component`, keeping per-line formatting intact,
+and `sendTranslationLines` sends them as separate chat messages:
+
+```kotlin
+// motd="Welcome, <gold>{0}</gold>!\nType /help to get started."
+player.sendTranslationLines(messages, "motd", Component.text(player.name))
+```
+
+## Player locale
+
+By default a player's locale is detected from their client's own Minecraft language setting
+(`player.locale().language`). To let players (or your plugin) pick a language explicitly instead
+- e.g. via a `/language ru` command - use `setLocale`; it's stored in-memory per player and takes
+priority over the client's setting wherever a locale is resolved:
+
+```kotlin
+player.setLocale("ru")                 // explicit override, e.g. from a command
+player.localeOverride()                // "ru", or null if none was set
+player.clearLocaleOverride()           // fall back to the client's own language again
+
+player.resolveLocale(translator)       // override -> client language -> Translator.defaultLocale
+```
+
+`sendTranslation`/`sendTranslationLines` called on a `Player` automatically use `resolveLocale`,
+so most code never needs to call it directly:
+
+```kotlin
+// uses this player's override (if set and loaded) or their client's language
+player.sendTranslation(messages, "greeting", Component.text(player.name))
+```
+
+This is a separate, more specific overload from the locale-agnostic `Audience.sendTranslation`
+shown above (which always uses `Translator.defaultLocale`); calling it on a value statically
+typed as `Player` picks this one, on a plain `Audience`/`CommandSender` (e.g. the console) it
+picks the other. The override is kept in memory only and is not persisted across server
+restarts - persist it yourself and call `setLocale` again on join if you need that.
 
 ## Building
 

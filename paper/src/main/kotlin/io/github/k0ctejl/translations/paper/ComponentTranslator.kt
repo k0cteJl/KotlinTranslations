@@ -20,7 +20,8 @@ import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
  * plain string, and it survives the substitution untouched.
  */
 public class ComponentTranslator @JvmOverloads constructor(
-    private val translator: Translator,
+    /** The underlying [Translator] this renderer wraps, e.g. for [Translator.isLoaded] checks. */
+    public val translator: Translator,
     private val deserializer: ComponentDeserializer = ComponentDeserializer { DEFAULT_MINI_MESSAGE.deserialize(it) }
 ) {
 
@@ -31,9 +32,25 @@ public class ComponentTranslator @JvmOverloads constructor(
     /** Renders [key] for [locale], falling back to [Translator.defaultLocale] and finally to plain text. */
     public fun renderFor(locale: String, key: String, vararg args: ComponentLike): Component {
         val template = translator.template(key, locale) ?: return Component.text(key)
+        return renderSegments(template.segments, args)
+    }
 
+    /**
+     * Renders each line of [key] (see [Translator.translateLines]) independently using
+     * [Translator.defaultLocale]. Returns `listOf(Component.text(key))` if undefined.
+     */
+    public fun renderLines(key: String, vararg args: ComponentLike): List<Component> =
+        renderLinesFor(translator.defaultLocale, key, *args)
+
+    /** Same as [renderLines], but for [locale], falling back to [Translator.defaultLocale] like [renderFor]. */
+    public fun renderLinesFor(locale: String, key: String, vararg args: ComponentLike): List<Component> {
+        val template = translator.template(key, locale) ?: return listOf(Component.text(key))
+        return template.lines.map { lineSegments -> renderSegments(lineSegments, args) }
+    }
+
+    private fun renderSegments(segments: List<MessageSegment>, args: Array<out ComponentLike>): Component {
         val builder = Component.text()
-        for (segment in template.segments) {
+        for (segment in segments) {
             when (segment) {
                 is MessageSegment.Literal -> builder.append(deserializer.deserialize(segment.text))
                 is MessageSegment.Placeholder -> {

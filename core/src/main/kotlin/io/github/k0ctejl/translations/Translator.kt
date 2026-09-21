@@ -90,6 +90,18 @@ public class Translator private constructor(@Volatile public var defaultLocale: 
         template(key, locale)?.format(*args) ?: key
 
     /**
+     * Translates [key] using [defaultLocale] like [translate], then splits the result into one
+     * entry per line - for a multi-line `.lang` value written with `\n` escapes, e.g. a
+     * multi-line MOTD or help message. Returns `listOf(key)` if undefined.
+     */
+    public fun translateLines(key: String, vararg args: Any?): List<String> =
+        template(key, defaultLocale)?.formatLines(*args) ?: listOf(key)
+
+    /** Same as [translateLines], but for [locale], falling back to [defaultLocale] like [translateFor]. */
+    public fun translateLinesFor(locale: String, key: String, vararg args: Any?): List<String> =
+        template(key, locale)?.formatLines(*args) ?: listOf(key)
+
+    /**
      * Compares every non-default locale's key set against [defaultLocale]'s, so missing or
      * stray translations can be caught in a test or a build step instead of at runtime. Returns
      * one [ValidationIssue] per locale that differs; an empty list means every loaded locale has

@@ -52,4 +52,34 @@ class MessageTemplateTest {
         val template = MessageTemplate.compile("raw {0} value")
         assertEquals("raw {0} value", template.toString())
     }
+
+    @Test
+    fun `formatLines splits a multi-line value into one entry per line`() {
+        val template = MessageTemplate.compile("Line one\nLine two\nLine three")
+        assertEquals(listOf("Line one", "Line two", "Line three"), template.formatLines())
+    }
+
+    @Test
+    fun `formatLines substitutes placeholders independently on each line`() {
+        val template = MessageTemplate.compile("Hello, {0}!\nYou have {1} messages.")
+        assertEquals(listOf("Hello, Bob!", "You have 5 messages."), template.formatLines("Bob", 5))
+    }
+
+    @Test
+    fun `formatLines returns a single entry for a template with no newline`() {
+        val template = MessageTemplate.compile("Hello, {0}!")
+        assertEquals(listOf("Hello, Bob!"), template.formatLines("Bob"))
+    }
+
+    @Test
+    fun `formatLines preserves empty lines`() {
+        val template = MessageTemplate.compile("first\n\nthird")
+        assertEquals(listOf("first", "", "third"), template.formatLines())
+    }
+
+    @Test
+    fun `formatLines handles a placeholder that spans the whole line`() {
+        val template = MessageTemplate.compile("{0}\n{1}")
+        assertEquals(listOf("a", "b"), template.formatLines("a", "b"))
+    }
 }

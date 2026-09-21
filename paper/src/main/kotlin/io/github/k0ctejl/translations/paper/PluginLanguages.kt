@@ -3,7 +3,6 @@
 package io.github.k0ctejl.translations.paper
 
 import io.github.k0ctejl.translations.Translator
-import org.bukkit.entity.Player
 import org.bukkit.plugin.java.JavaPlugin
 
 /**
@@ -14,10 +13,4 @@ public fun Translator.loadFromPlugin(plugin: JavaPlugin, locale: String, resourc
     val stream = plugin.getResource(resourcePath)
         ?: throw IllegalArgumentException("Resource '$resourcePath' not found in ${plugin.name}")
     return stream.use { loadLanguage(locale, it) }
-}
-
-/** This player's client language (e.g. `en`, `ru`), or [Translator.defaultLocale] if it isn't loaded. */
-public fun Player.resolveLocale(translator: Translator): String {
-    val language = locale().language
-    return if (translator.isLoaded(language)) language else translator.defaultLocale
 }

@@ -122,4 +122,22 @@ class TranslatorTest {
         assertEquals(setOf("farewell"), ru.missingKeys)
         assertTrue(ru.extraKeys.isEmpty())
     }
+
+    @Test
+    fun `translateLines splits a multi-line translation using the default locale`() {
+        val t = Translator.create("en").loadLanguage("en", mapOf("motd" to "Welcome, {0}!\nEnjoy your stay."))
+        assertEquals(listOf("Welcome, Bob!", "Enjoy your stay."), t.translateLines("motd", "Bob"))
+    }
+
+    @Test
+    fun `translateLinesFor falls back to the default locale`() {
+        val t = translator() // "farewell" only defined for en
+            .loadLanguage("en", mapOf("greeting" to "Hello, {0}!", "farewell" to "Bye\nSee you soon"))
+        assertEquals(listOf("Bye", "See you soon"), t.translateLinesFor("ru", "farewell"))
+    }
+
+    @Test
+    fun `translateLines returns the raw key as a single-element list when undefined`() {
+        assertEquals(listOf("nonexistent.key"), translator().translateLines("nonexistent.key"))
+    }
 }
