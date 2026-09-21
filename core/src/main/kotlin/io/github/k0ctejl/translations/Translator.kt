@@ -3,8 +3,10 @@ package io.github.k0ctejl.translations
 import java.io.InputStream
 import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.io.path.nameWithoutExtension
 
 /**
  * Thread-safe registry of [TranslationCatalog]s keyed by locale, and the main entry point for
@@ -34,6 +36,23 @@ public class Translator private constructor(@Volatile public var defaultLocale: 
     @JvmOverloads
     public fun loadLanguage(locale: String, path: Path, charset: Charset = StandardCharsets.UTF_8): Translator =
         loadLanguage(locale, LangFileParser.parse(path, charset))
+
+    /**
+     * Loads every `*.lang` file directly inside [directory], deriving each locale from its file
+     * name - e.g. `lang/en.lang` registers `en`, `lang/ru.lang` registers `ru`. Not recursive.
+     */
+    @JvmOverloads
+    public fun loadLanguagesFromDirectory(directory: Path, charset: Charset = StandardCharsets.UTF_8): Translator {
+        if (!Files.isDirectory(directory)) {
+            throw IllegalArgumentException("Not a directory: $directory")
+        }
+        Files.newDirectoryStream(directory, "*.lang").use { entries ->
+            for (path in entries) {
+                loadLanguage(path.nameWithoutExtension, path, charset)
+            }
+        }
+        return this
+    }
 
     /** Removes the catalog for [locale], if any. */
     public fun unloadLanguage(locale: String): Translator {
@@ -69,6 +88,25 @@ public class Translator private constructor(@Volatile public var defaultLocale: 
      */
     public fun translateFor(locale: String, key: String, vararg args: Any?): String =
         template(key, locale)?.format(*args) ?: key
+
+    /**
+     * Compares every non-default locale's key set against [defaultLocale]'s, so missing or
+     * stray translations can be caught in a test or a build step instead of at runtime. Returns
+     * one [ValidationIssue] per locale that differs; an empty list means every loaded locale has
+     * exactly the same keys as [defaultLocale].
+     */
+    public fun validate(): List<ValidationIssue> {
+        val referenceKeys = catalogs[defaultLocale]?.keys ?: emptySet()
+        return catalogs.keys
+            .filter { it != defaultLocale }
+            .sorted()
+            .mapNotNull { locale ->
+                val localeKeys = catalogs.getValue(locale).keys
+                val missing = referenceKeys - localeKeys
+                val extra = localeKeys - referenceKeys
+                if (missing.isEmpty() && extra.isEmpty()) null else ValidationIssue(locale, missing, extra)
+            }
+    }
 
     public companion object {
         /** Creates an empty [Translator]; call [loadLanguage] to populate it. */

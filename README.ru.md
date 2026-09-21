@@ -14,10 +14,11 @@
 
 ## Модули
 
-| Модуль  | Назначение                                                                 |
-|---------|-----------------------------------------------------------------------------|
-| `core`  | Формат `.lang`, компиляция шаблонов, `Translator` — не зависит от Minecraft |
-| `paper` | Рендер переводов в `net.kyori.adventure.text.Component`, расширения для Paper API (`Audience`, `Player`, `JavaPlugin`) — работает и на форках Paper/Folia с тем же API, например CanvasMC |
+| Модуль        | Назначение                                                                 |
+|---------------|-----------------------------------------------------------------------------|
+| `core`        | Формат `.lang`, компиляция шаблонов, `Translator` — не зависит от Minecraft |
+| `paper`       | Рендер переводов в `net.kyori.adventure.text.Component`, расширения для Paper API (`Audience`, `Player`, `JavaPlugin`) — работает и на форках Paper/Folia с тем же API, например CanvasMC |
+| `benchmarks`  | JMH-бенчмарки для `Translator.translate` и `LangFileParser.parse` |
 
 ## Формат `.lang`
 
@@ -58,6 +59,28 @@ String ruMessage = translator.translateFor("ru", "greeting", "Bob", 5);
 Незаданный ключ возвращается как есть (сам ключ) — без исключений на хот-пути.
 Отсутствующий в конкретной локали ключ автоматически откатывается на `defaultLocale`.
 
+## Загрузка целой директории
+
+Вместо вызова `loadLanguage` для каждой локали отдельно можно указать `loadLanguagesFromDirectory`
+на папку с `.lang`-файлами — локаль каждого файла берётся из его имени (`lang/en.lang` → `en`,
+`lang/ru.lang` → `ru`). Без рекурсии; файлы не с расширением `.lang` игнорируются.
+
+```kotlin
+val translator = Translator.create("en").loadLanguagesFromDirectory(Path.of("lang"))
+```
+
+## Проверка переводов
+
+`validate()` сравнивает набор ключей каждой не-дефолтной локали с `defaultLocale` и сообщает,
+чего не хватает или что лишнее — так устаревший файл перевода можно поймать в тесте или на этапе
+сборки, а не молча получить откат на дефолтную локаль в рантайме:
+
+```kotlin
+val issues = translator.validate()
+check(issues.isEmpty()) { issues.joinToString("\n") }
+// ValidationIssue(locale=ru, missingKeys=[farewell], extraKeys=[])
+```
+
 ## Paper: Component-интеграция
 
 ```kotlin
@@ -77,12 +100,31 @@ player.sendTranslationFor(messages, player.resolveLocale(translator), "greeting"
 Плейсхолдеры принимают `ComponentLike`, поэтому вместо простой строки можно передать
 полноценный компонент — например, имя игрока с hover-событием — и оно сохранится при подстановке.
 
+По умолчанию литеральный текст разбирается как MiniMessage. Для плагинов/конфигов, всё ещё
+использующих legacy `&`-цветовые коды, используйте `ComponentTranslator.legacy(...)`:
+
+```kotlin
+val messages = ComponentTranslator.legacy(translator) // разбирает "&cHello" вместо "<red>Hello"
+val messages = ComponentTranslator.legacy(translator, character = '§')
+val messages = ComponentTranslator.miniMessage(translator, myMiniMessageInstance)
+```
+
 ## Сборка
 
 ```
 ./gradlew :core:test
 ./gradlew build
+./gradlew :benchmarks:jmh
 ```
 
 Модуль `paper` резолвит `io.papermc.paper:paper-api` из `repo.papermc.io` — как и любой
-Paper-плагин, для сборки нужен доступ к этому репозиторию.
+Paper-плагин, для сборки нужен доступ к этому репозиторию. `:benchmarks:jmh` запускает JMH-сьют
+(настройки — в `benchmarks/build.gradle.kts`) и печатает throughput для `translate()` (простой
+текст, один плейсхолдер, несколько плейсхолдеров) и для парсинга `.lang`-файла. Для разового
+запуска с собственными флагами JMH (например, меньше итераций) соберите shaded-jar один раз и
+запустите его напрямую:
+
+```
+./gradlew :benchmarks:jmhJar
+java -jar benchmarks/build/libs/kotlintranslations-benchmarks-*-jmh.jar -wi 1 -i 1 -f 1
+```
