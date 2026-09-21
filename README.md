@@ -1,34 +1,36 @@
+English | [Русский](README.ru.md)
+
 # KotlinTranslations
 
-Максимально лёгкий и быстрый API для переводов текста в JVM-приложениях, с готовой
-интеграцией под Paper API (и его форки, например CanvasMC) через компоненты Adventure.
+A lightweight, fast translation API for JVM applications, with ready-made Paper API
+integration (and its forks, e.g. CanvasMC) via Adventure components.
 
-- **Без парсинга/regex на горячем пути.** Каждый `.lang`-файл разбирается и компилируется в
-  массив сегментов (литерал/плейсхолдер) один раз при загрузке. Вызов `translate(...)` — это
-  просто проход по уже готовому списку сегментов и конкатенация в `StringBuilder`.
-- **Без сторонних зависимостей в `core`.** Только Kotlin stdlib и JDK.
-- **Java- и Kotlin-friendly.** `@JvmStatic`/`@JvmOverloads` на всех фабричных методах,
-  никаких suspend-функций или Kotlin-специфичных трюков в публичном API.
+- **No parsing/regex on the hot path.** Every `.lang` file is parsed and compiled into an
+  array of segments (literal/placeholder) once, at load time. Calling `translate(...)` just
+  walks that already-compiled list and concatenates into a `StringBuilder`.
+- **No third-party dependencies in `core`.** Just the Kotlin stdlib and the JDK.
+- **Java- and Kotlin-friendly.** `@JvmStatic`/`@JvmOverloads` on every factory method, no
+  suspend functions or Kotlin-only tricks in the public API.
 
-## Модули
+## Modules
 
-| Модуль  | Назначение                                                                 |
-|---------|-----------------------------------------------------------------------------|
-| `core`  | Формат `.lang`, компиляция шаблонов, `Translator` — не зависит от Minecraft |
-| `paper` | Рендер переводов в `net.kyori.adventure.text.Component`, расширения для Paper API (`Audience`, `Player`, `JavaPlugin`) — работает и на форках Paper/Folia с тем же API, например CanvasMC |
+| Module  | Purpose                                                                       |
+|---------|--------------------------------------------------------------------------------|
+| `core`  | The `.lang` format, template compilation, `Translator` — no Minecraft dependency |
+| `paper` | Renders translations as `net.kyori.adventure.text.Component`, extension functions for the Paper API (`Audience`, `Player`, `JavaPlugin`) — also works on Paper/Folia forks sharing the same API, such as CanvasMC |
 
-## Формат `.lang`
+## The `.lang` format
 
 ```
-# комментарий (# или //)
+# comment (# or //)
 greeting="Hello, {0}! You have {1} messages."
 farewell="Goodbye!"
 ```
 
-- Ключ: буквы, цифры, `.`, `_`, `-`.
-- Значение — обязательно в двойных кавычках, поддерживает экранирование `\"`, `\\`, `\n`, `\t`.
-- Плейсхолдеры — `{0}`, `{1}`, ... (позиционные, можно повторять и использовать не по порядку).
-- После закрывающей кавычки допустим только комментарий (`# ...` / `// ...`).
+- Key: letters, digits, `.`, `_`, `-`.
+- Value must be wrapped in double quotes and supports `\"`, `\\`, `\n`, `\t` escapes.
+- Placeholders are `{0}`, `{1}`, ... (positional; can repeat or appear out of order).
+- Only a comment (`# ...` / `// ...`) is allowed after the closing quote.
 
 ## Core: Kotlin
 
@@ -37,8 +39,8 @@ val translator = Translator.create(defaultLocale = "en")
     .loadLanguage("en", Path.of("lang/en.lang"))
     .loadLanguage("ru", Path.of("lang/ru.lang"))
 
-translator.translate("greeting", "Bob", 5)              // "Hello, Bob! You have 5 messages."
-translator.translateFor("ru", "greeting", "Bob", 5)       // перевод на конкретную локаль
+translator.translate("greeting", "Bob", 5)               // "Hello, Bob! You have 5 messages."
+translator.translateFor("ru", "greeting", "Bob", 5)        // translate for a specific locale
 translator.hasTranslation("greeting", "ru")
 ```
 
@@ -53,34 +55,34 @@ String message = translator.translate("greeting", "Bob", 5);
 String ruMessage = translator.translateFor("ru", "greeting", "Bob", 5);
 ```
 
-Незаданный ключ возвращается как есть (сам ключ) — без исключений на хот-пути.
-Отсутствующий в конкретной локали ключ автоматически откатывается на `defaultLocale`.
+An undefined key is returned as-is (the key itself) — no exceptions on the hot path.
+A key missing for a specific locale automatically falls back to `defaultLocale`.
 
-## Paper: Component-интеграция
+## Paper: Component integration
 
 ```kotlin
 val translator = Translator.create("en")
     .loadFromPlugin(plugin, "en", "lang/en.lang")
     .loadFromPlugin(plugin, "ru", "lang/ru.lang")
 
-val messages = ComponentTranslator(translator) // по умолчанию рендерит литералы как MiniMessage
+val messages = ComponentTranslator(translator) // renders literals as MiniMessage by default
 
 // greeting="Hello, <gold>{0}</gold>! You have {1} messages."
 player.sendTranslation(messages, "greeting", Component.text(player.name), Component.text(unread))
 
-// с локалью конкретного игрока
+// using this player's own locale
 player.sendTranslationFor(messages, player.resolveLocale(translator), "greeting", Component.text(player.name))
 ```
 
-Плейсхолдеры принимают `ComponentLike`, поэтому вместо простой строки можно передать
-полноценный компонент — например, имя игрока с hover-событием — и оно сохранится при подстановке.
+Placeholders accept `ComponentLike`, so instead of a plain string you can pass a fully built
+component — e.g. a player's name with a hover event — and it survives the substitution intact.
 
-## Сборка
+## Building
 
 ```
 ./gradlew :core:test
 ./gradlew build
 ```
 
-Модуль `paper` резолвит `io.papermc.paper:paper-api` из `repo.papermc.io` — как и любой
-Paper-плагин, для сборки нужен доступ к этому репозиторию.
+The `paper` module resolves `io.papermc.paper:paper-api` from `repo.papermc.io` — like any
+Paper plugin, building it requires access to that repository.
