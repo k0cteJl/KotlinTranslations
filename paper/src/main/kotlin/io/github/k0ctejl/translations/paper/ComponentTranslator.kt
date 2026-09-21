@@ -1,6 +1,5 @@
 package io.github.k0ctejl.translations.paper
 
-import io.github.k0ctejl.translations.MessageSegment
 import io.github.k0ctejl.translations.Translator
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.ComponentLike
@@ -14,11 +13,15 @@ import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
  * PaperMC (and Paper/Folia forks such as CanvasMC, which share the same API) and every other
  * modern Adventure-based platform.
  *
- * Literal segments of the `.lang` value are turned into components by a [ComponentDeserializer] -
+ * A template's literal text and placeholders are deserialized by a [ComponentDeserializer] -
  * MiniMessage by default (`<red>...</red>`, `<hover:...>`, ...), or legacy `&`-codes via
- * [legacy]. Placeholder arguments are inserted as-is via [ComponentLike], so callers can pass a
- * fully built [Component] - e.g. a player's display name with its own hover event - instead of a
- * plain string, and it survives the substitution untouched.
+ * [legacy] - in a single pass rather than segment by segment, so a color/style tag that isn't
+ * explicitly closed still applies to a placeholder that follows it, e.g. `"<red>{0}"` colors the
+ * inserted argument red, not just the literal text before it. Placeholder arguments are inserted
+ * as-is via [ComponentLike], so callers can pass a fully built [Component] - e.g. a player's
+ * display name with its own hover event - instead of a plain string, and it survives the
+ * substitution untouched (an argument's own explicit style still overrides ambient style from
+ * surrounding tags).
  *
  * The MiniMessage-based constructors ([ComponentTranslator] itself and [miniMessage]) resolve
  * any tags [translator] has registered via [TagRegistry]/[Translator.loadTags] and merge them
@@ -40,7 +43,7 @@ public class ComponentTranslator @JvmOverloads constructor(
     /** Renders [key] for [locale], falling back to [Translator.defaultLocale] and finally to plain text. */
     public fun renderFor(locale: String, key: String, vararg args: ComponentLike): Component {
         val template = translator.template(key, locale) ?: return Component.text(key)
-        return renderSegments(template.segments, args)
+        return renderWithArguments(template.segments, deserializer, args)
     }
 
     /**
@@ -53,21 +56,7 @@ public class ComponentTranslator @JvmOverloads constructor(
     /** Same as [renderLines], but for [locale], falling back to [Translator.defaultLocale] like [renderFor]. */
     public fun renderLinesFor(locale: String, key: String, vararg args: ComponentLike): List<Component> {
         val template = translator.template(key, locale) ?: return listOf(Component.text(key))
-        return template.lines.map { lineSegments -> renderSegments(lineSegments, args) }
-    }
-
-    private fun renderSegments(segments: List<MessageSegment>, args: Array<out ComponentLike>): Component {
-        val builder = Component.text()
-        for (segment in segments) {
-            when (segment) {
-                is MessageSegment.Literal -> builder.append(deserializer.deserialize(segment.text))
-                is MessageSegment.Placeholder -> {
-                    val arg = args.getOrNull(segment.index)
-                    if (arg != null) builder.append(arg)
-                }
-            }
-        }
-        return builder.build()
+        return template.lines.map { lineSegments -> renderWithArguments(lineSegments, deserializer, args) }
     }
 
     public companion object {

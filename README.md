@@ -129,7 +129,20 @@ player.sendTranslationFor(messages, player.resolveLocale(translator), "greeting"
 ```
 
 Placeholders accept `ComponentLike`, so instead of a plain string you can pass a fully built
-component — e.g. a player's name with a hover event — and it survives the substitution intact.
+component — e.g. a player's name with a hover event — and it survives the substitution intact
+(an argument's own explicit style still overrides ambient style from surrounding tags).
+
+A whole template is deserialized in one pass rather than segment by segment, so a color/style
+tag left open still applies to a placeholder that follows it:
+
+```
+# both {0} render red - "<red>" isn't closed, so it applies through the whole line
+greeting="<red>Hello, {0}!"
+```
+
+A genuinely self-closed tag (`<red/>`) still means an empty, zero-width scope, same as in any
+other MiniMessage string - it colors nothing, since there's nothing between its open and close.
+Close the tag explicitly (`<red>Hello</red>, {0}!`) to scope color to part of a line.
 
 By default literal text is parsed as MiniMessage. For plugins/configs still using legacy
 `&`-color codes, use `ComponentTranslator.legacy(...)` instead:

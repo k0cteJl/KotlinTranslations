@@ -4,5 +4,5 @@ plugins {
 
 allprojects {
     group = "io.github.k0ctejl.translations"
-    version = "1.2.0"
+    version = "1.2.1"
 }
