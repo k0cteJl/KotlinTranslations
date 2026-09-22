@@ -3,6 +3,7 @@
 package io.github.k0ctejl.translations.paper
 
 import io.github.k0ctejl.translations.Translator
+import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.ComponentLike
 import org.bukkit.entity.Player
 
@@ -39,10 +40,29 @@ public fun Player.resolveLocale(translator: Translator): String {
  * variable) if you always want [Translator.defaultLocale] regardless of the player.
  */
 public fun Player.sendTranslation(translator: ComponentTranslator, key: String, vararg args: ComponentLike): Unit =
-    sendMessage(translator.renderFor(resolveLocale(translator.translator), key, *args))
+    sendMessage(render(translator, key, *args))
 
 /** Same as [sendTranslation], but for a multi-line value (see [ComponentTranslator.renderLines]). */
 public fun Player.sendTranslationLines(translator: ComponentTranslator, key: String, vararg args: ComponentLike) {
-    val locale = resolveLocale(translator.translator)
-    for (line in translator.renderLinesFor(locale, key, *args)) sendMessage(line)
+    for (line in renderLines(translator, key, *args)) sendMessage(line)
 }
+
+/**
+ * Renders [key] via [translator] using this player's [resolveLocale], without sending it -
+ * for anything other than a chat message, e.g. an item's display name or a GUI title. See
+ * [sendTranslation] to render and send in one call.
+ */
+public fun Player.render(translator: ComponentTranslator, key: String, vararg args: ComponentLike): Component =
+    translator.renderFor(resolveLocale(translator.translator), key, *args)
+
+/** Same as [render], but for a multi-line value (see [ComponentTranslator.renderLines]). */
+public fun Player.renderLines(translator: ComponentTranslator, key: String, vararg args: ComponentLike): List<Component> =
+    translator.renderLinesFor(resolveLocale(translator.translator), key, *args)
+
+/** Translates [key] via [translator] using this player's [resolveLocale], as a plain string. */
+public fun Player.translate(translator: Translator, key: String, vararg args: Any?): String =
+    translator.translateFor(resolveLocale(translator), key, *args)
+
+/** Same as [translate], but for a multi-line value (see [Translator.translateLines]). */
+public fun Player.translateLines(translator: Translator, key: String, vararg args: Any?): List<String> =
+    translator.translateLinesFor(resolveLocale(translator), key, *args)

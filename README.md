@@ -207,19 +207,28 @@ player.clearLocaleOverride()           // fall back to the client's own language
 player.resolveLocale(translator)       // override -> client language -> Translator.defaultLocale
 ```
 
-`sendTranslation`/`sendTranslationLines` called on a `Player` automatically use `resolveLocale`,
-so most code never needs to call it directly:
+Every `Player`-receiver translate/render/send function uses `resolveLocale` automatically, so
+none of them need a locale argument - `translator`/`messages` is all they take besides the key
+and placeholder args:
 
 ```kotlin
-// uses this player's override (if set and loaded) or their client's language
-player.sendTranslation(messages, "greeting", Component.text(player.name))
+player.sendTranslation(messages, "greeting", Component.text(player.name))       // renders + sends a Component
+player.sendTranslationLines(messages, "motd", Component.text(player.name))      // ... one message per line
+
+player.render(messages, "greeting", Component.text(player.name))                // renders without sending -
+player.renderLines(messages, "motd", Component.text(player.name))               // e.g. for an item's display name
+
+player.translate(translator, "greeting", player.name)                           // plain String, no Component at all
+player.translateLines(translator, "motd", player.name)
 ```
 
-This is a separate, more specific overload from the locale-agnostic `Audience.sendTranslation`
-shown above (which always uses `Translator.defaultLocale`); calling it on a value statically
-typed as `Player` picks this one, on a plain `Audience`/`CommandSender` (e.g. the console) it
-picks the other. The override is kept in memory only and is not persisted across server
-restarts - persist it yourself and call `setLocale` again on join if you need that.
+These are separate, more specific overloads from the locale-agnostic `Audience.sendTranslation`/
+`Translator.translate` shown earlier (which always use `Translator.defaultLocale`); calling one
+of these names on a value statically typed as `Player` picks the resolveLocale-aware version, on
+a plain `Audience`/`CommandSender` (e.g. the console) or by calling the `Translator`/
+`ComponentTranslator` method directly it picks the locale-agnostic one. The override is kept in
+memory only and is not persisted across server restarts - persist it yourself and call
+`setLocale` again on join if you need that.
 
 ## Building
 

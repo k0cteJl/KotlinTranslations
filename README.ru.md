@@ -210,20 +210,28 @@ player.clearLocaleOverride()           // снова использовать я
 player.resolveLocale(translator)       // override -> язык клиента -> Translator.defaultLocale
 ```
 
-`sendTranslation`/`sendTranslationLines`, вызванные на `Player`, автоматически используют
-`resolveLocale`, так что в большинстве случаев вызывать его вручную не нужно:
+Каждая функция перевода/рендера/отправки с приёмником `Player` автоматически использует
+`resolveLocale`, так что ни одной из них не нужен параметр локали — только `translator`/
+`messages`, ключ и аргументы плейсхолдеров:
 
 ```kotlin
-// использует override игрока (если задан и загружен) или язык его клиента
-player.sendTranslation(messages, "greeting", Component.text(player.name))
+player.sendTranslation(messages, "greeting", Component.text(player.name))       // рендерит и отправляет Component
+player.sendTranslationLines(messages, "motd", Component.text(player.name))      // ...отдельным сообщением на строку
+
+player.render(messages, "greeting", Component.text(player.name))                // рендерит без отправки —
+player.renderLines(messages, "motd", Component.text(player.name))               // например, для display name предмета
+
+player.translate(translator, "greeting", player.name)                           // обычная String, без Component вообще
+player.translateLines(translator, "motd", player.name)
 ```
 
-Это отдельная, более специфичная перегрузка по сравнению с locale-агностичным
-`Audience.sendTranslation` из примера выше (тот всегда использует `Translator.defaultLocale`):
-вызов на значении, статически типизированном как `Player`, выбирает эту версию, на обычном
-`Audience`/`CommandSender` (например, консоли) — ту. Override хранится только в памяти и не
-переживает перезапуск сервера — сохраняйте его сами и вызывайте `setLocale` заново при входе,
-если это нужно.
+Это отдельные, более специфичные перегрузки по сравнению с locale-агностичными
+`Audience.sendTranslation`/`Translator.translate` из примеров выше (те всегда используют
+`Translator.defaultLocale`): вызов одного из этих имён на значении, статически типизированном
+как `Player`, выбирает версию с `resolveLocale`, на обычном `Audience`/`CommandSender` (например,
+консоли) или при прямом вызове метода `Translator`/`ComponentTranslator` — locale-агностичную.
+Override хранится только в памяти и не переживает перезапуск сервера — сохраняйте его сами и
+вызывайте `setLocale` заново при входе, если это нужно.
 
 ## Сборка
 
