@@ -59,6 +59,28 @@ String ruMessage = translator.translateFor("ru", "greeting", "Bob", 5);
 Незаданный ключ возвращается как есть (сам ключ) — без исключений на хот-пути.
 Отсутствующий в конкретной локали ключ автоматически откатывается на `defaultLocale`.
 
+## Инстанс по умолчанию
+
+Передавать `Translator` в каждый вызов раздражает, как только у плагина появляется больше одного
+класса, которому он нужен. Зарегистрируйте один как дефолтный — и всё, что в нём нуждается,
+достанет его само, без передачи вручную:
+
+```kotlin
+Translator.create("en")
+    .loadLanguage("en", Path.of("lang/en.lang"))
+    .makeDefault()
+
+// где угодно ещё, без единой ссылки на Translator в области видимости:
+Translator.requireDefault().translate("greeting", "Bob")
+```
+
+`requireDefault()` выбрасывает `IllegalStateException` с понятным сообщением, если `makeDefault()`
+ещё не вызывался. Это полностью опционально — явный инстанс `Translator` по-прежнему работает как
+раньше и остаётся лучшим выбором, если плагину реально нужно несколько (например, отдельные файлы
+переводов на под-модуль). См. [Paper: Component-интеграция](#paper-component-интеграция) — там
+такой же `ComponentTranslator.default`, позволяющий `Audience`/`Player`-функциям вроде
+`sendTranslation` полностью опустить аргумент `translator`.
+
 ## Загрузка целой директории
 
 `loadLanguage` теперь принимает и директорию вместо одного файла: все `*.lang`-файлы прямо внутри
@@ -163,6 +185,25 @@ val messages = ComponentTranslator.miniMessage(translator, myMiniMessageInstance
 player.sendTranslationLines(messages, "motd", Component.text(player.name))
 ```
 
+Как и обычный `Translator`, `ComponentTranslator` можно зарегистрировать дефолтным, чтобы
+`Audience`/`Player`-функции вообще не требовали его передачи:
+
+```kotlin
+ComponentTranslator(translator).makeDefault()
+
+// нигде ниже нет аргумента ComponentTranslator:
+audience.sendTranslation("greeting", Component.text(player.name))
+audience.sendTranslationFor("ru", "greeting", Component.text(player.name))
+player.sendTranslation("greeting", Component.text(player.name))   // по-прежнему учитывает локаль через resolveLocale
+player.render("greeting", Component.text(player.name))
+player.translate("greeting", player.name)                         // использует Translator.default, не ComponentTranslator.default
+```
+
+`ComponentTranslator.requireDefault()` выбрасывает `IllegalStateException`, если `makeDefault()`
+ещё не вызывался. Обратите внимание: `player.translate(...)` (та, что возвращает обычную `String`)
+читает `Translator.default`, а не `ComponentTranslator.default` — зарегистрируйте оба, если
+используете оба варианта.
+
 ## Свои MiniMessage-теги
 
 `loadTags` читает файл в формате `.lang` и регистрирует каждую запись как MiniMessage-тег, так
@@ -232,6 +273,16 @@ player.translateLines(translator, "motd", player.name)
 консоли) или при прямом вызове метода `Translator`/`ComponentTranslator` — locale-агностичную.
 Override хранится только в памяти и не переживает перезапуск сервера — сохраняйте его сами и
 вызывайте `setLocale` заново при входе, если это нужно.
+
+Каждая из них тоже полностью опускает аргумент `translator`/`messages`, если
+[зарегистрирован дефолтный инстанс](#инстанс-по-умолчанию):
+
+```kotlin
+player.sendTranslation("greeting", Component.text(player.name))   // ComponentTranslator.default
+player.render("greeting", Component.text(player.name))            // ComponentTranslator.default
+player.translate("greeting", player.name)                         // Translator.default
+player.resolveLocale()                                             // Translator.default
+```
 
 ## Сборка
 

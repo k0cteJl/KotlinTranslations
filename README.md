@@ -59,6 +59,28 @@ String ruMessage = translator.translateFor("ru", "greeting", "Bob", 5);
 An undefined key is returned as-is (the key itself) — no exceptions on the hot path.
 A key missing for a specific locale automatically falls back to `defaultLocale`.
 
+## Default instance
+
+Threading a `Translator` through every call site is annoying once a plugin has more than one
+class that needs it. Register one as the default and everything that needs it can reach it
+without you passing it around:
+
+```kotlin
+Translator.create("en")
+    .loadLanguage("en", Path.of("lang/en.lang"))
+    .makeDefault()
+
+// elsewhere, with no Translator reference in scope at all:
+Translator.requireDefault().translate("greeting", "Bob")
+```
+
+`requireDefault()` throws `IllegalStateException` with a clear message if nothing has called
+`makeDefault()` yet. This is entirely optional - an explicit `Translator` instance works exactly
+as before, and is still the better choice if a plugin genuinely needs more than one (e.g. per
+sub-module translation files). See [Paper: Component integration](#paper-component-integration)
+for the matching `ComponentTranslator.default`, which lets `Audience`/`Player` extension
+functions like `sendTranslation` drop their `translator` argument entirely.
+
 ## Loading a whole directory
 
 `loadLanguage` also accepts a directory instead of a single file: every `*.lang` file directly
@@ -161,6 +183,24 @@ and `sendTranslationLines` sends them as separate chat messages:
 player.sendTranslationLines(messages, "motd", Component.text(player.name))
 ```
 
+Like the core `Translator`, a `ComponentTranslator` can be registered as the default so
+`Audience`/`Player` extension functions don't need it passed in at all:
+
+```kotlin
+ComponentTranslator(translator).makeDefault()
+
+// no ComponentTranslator argument anywhere below:
+audience.sendTranslation("greeting", Component.text(player.name))
+audience.sendTranslationFor("ru", "greeting", Component.text(player.name))
+player.sendTranslation("greeting", Component.text(player.name))   // still locale-aware via resolveLocale
+player.render("greeting", Component.text(player.name))
+player.translate("greeting", player.name)                         // uses Translator.default, not ComponentTranslator.default
+```
+
+`ComponentTranslator.requireDefault()` throws `IllegalStateException` if nothing has called
+`makeDefault()` yet. Note `player.translate(...)` (the plain-`String` one) reads
+`Translator.default`, not `ComponentTranslator.default` - register both if you use both.
+
 ## Custom MiniMessage tags
 
 `loadTags` reads a `.lang`-format file and registers every entry as a MiniMessage tag, so
@@ -229,6 +269,16 @@ a plain `Audience`/`CommandSender` (e.g. the console) or by calling the `Transla
 `ComponentTranslator` method directly it picks the locale-agnostic one. The override is kept in
 memory only and is not persisted across server restarts - persist it yourself and call
 `setLocale` again on join if you need that.
+
+Every one of them also drops the `translator`/`messages` argument entirely once
+[a default instance is registered](#default-instance):
+
+```kotlin
+player.sendTranslation("greeting", Component.text(player.name))   // ComponentTranslator.default
+player.render("greeting", Component.text(player.name))            // ComponentTranslator.default
+player.translate("greeting", player.name)                         // Translator.default
+player.resolveLocale()                                             // Translator.default
+```
 
 ## Building
 

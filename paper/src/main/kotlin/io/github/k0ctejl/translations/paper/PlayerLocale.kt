@@ -32,6 +32,9 @@ public fun Player.resolveLocale(translator: Translator): String {
     return if (translator.isLoaded(clientLanguage)) clientLanguage else translator.defaultLocale
 }
 
+/** Same as [resolveLocale], but using [Translator.default] instead of taking one explicitly. */
+public fun Player.resolveLocale(): String = resolveLocale(Translator.requireDefault())
+
 /**
  * Renders [key] via [translator] using this player's [resolveLocale] (their [setLocale]
  * override, or else their client's language) and sends it. A statically-typed [Player]
@@ -66,3 +69,28 @@ public fun Player.translate(translator: Translator, key: String, vararg args: An
 /** Same as [translate], but for a multi-line value (see [Translator.translateLines]). */
 public fun Player.translateLines(translator: Translator, key: String, vararg args: Any?): List<String> =
     translator.translateLinesFor(resolveLocale(translator), key, *args)
+
+/** Same as [sendTranslation], but using [ComponentTranslator.default] instead of taking one explicitly. */
+public fun Player.sendTranslation(key: String, vararg args: ComponentLike): Unit =
+    sendTranslation(ComponentTranslator.requireDefault(), key, *args)
+
+/** Same as [sendTranslationLines], but using [ComponentTranslator.default]. */
+public fun Player.sendTranslationLines(key: String, vararg args: ComponentLike) {
+    sendTranslationLines(ComponentTranslator.requireDefault(), key, *args)
+}
+
+/** Same as [render], but using [ComponentTranslator.default]. */
+public fun Player.render(key: String, vararg args: ComponentLike): Component =
+    render(ComponentTranslator.requireDefault(), key, *args)
+
+/** Same as [renderLines], but using [ComponentTranslator.default]. */
+public fun Player.renderLines(key: String, vararg args: ComponentLike): List<Component> =
+    renderLines(ComponentTranslator.requireDefault(), key, *args)
+
+/** Same as [translate], but using [Translator.default] instead of taking one explicitly. */
+public fun Player.translate(key: String, vararg args: Any?): String =
+    translate(Translator.requireDefault(), key, *args)
+
+/** Same as [translateLines], but using [Translator.default]. */
+public fun Player.translateLines(key: String, vararg args: Any?): List<String> =
+    translateLines(Translator.requireDefault(), key, *args)

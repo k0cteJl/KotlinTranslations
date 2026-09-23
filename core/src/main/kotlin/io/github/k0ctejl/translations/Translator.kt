@@ -126,11 +126,35 @@ public class Translator private constructor(@Volatile public var defaultLocale: 
             }
     }
 
+    /**
+     * Registers this instance as [Translator.default], so callers don't have to thread it
+     * through every call site - see [Translator.requireDefault]. Returns `this` for chaining,
+     * e.g. right after [create]/[loadLanguage].
+     */
+    public fun makeDefault(): Translator {
+        default = this
+        return this
+    }
+
     public companion object {
+        /**
+         * The application-wide default [Translator], registered via [makeDefault]. `null` until
+         * something sets it. Purely a convenience - nothing in this library requires it, and
+         * using an explicit [Translator] instance instead is always fine.
+         */
+        @Volatile
+        @JvmStatic
+        public var default: Translator? = null
+
         /** Creates an empty [Translator]; call [loadLanguage] to populate it. */
         @JvmStatic
         @JvmOverloads
         public fun create(defaultLocale: String = "en"): Translator = Translator(defaultLocale)
+
+        /** [default], or throws [IllegalStateException] if nothing has called [makeDefault] yet. */
+        @JvmStatic
+        public fun requireDefault(): Translator =
+            default ?: throw IllegalStateException("No default Translator set - call Translator.create(...).makeDefault() first")
     }
 }
 

@@ -59,7 +59,31 @@ public class ComponentTranslator @JvmOverloads constructor(
         return template.lines.map { lineSegments -> renderWithArguments(lineSegments, deserializer, args) }
     }
 
+    /**
+     * Registers this instance as [ComponentTranslator.default], so callers don't have to thread
+     * it through every call site - see [ComponentTranslator.requireDefault] and the no-translator
+     * overloads of `sendTranslation`/`render`/etc. Returns `this` for chaining.
+     */
+    public fun makeDefault(): ComponentTranslator {
+        default = this
+        return this
+    }
+
     public companion object {
+        /**
+         * The application-wide default [ComponentTranslator], registered via [makeDefault].
+         * `null` until something sets it. Purely a convenience - nothing in this library
+         * requires it, and using an explicit instance instead is always fine.
+         */
+        @Volatile
+        @JvmStatic
+        public var default: ComponentTranslator? = null
+
+        /** [default], or throws [IllegalStateException] if nothing has called [makeDefault] yet. */
+        @JvmStatic
+        public fun requireDefault(): ComponentTranslator =
+            default ?: throw IllegalStateException("No default ComponentTranslator set - call ComponentTranslator(...).makeDefault() first")
+
         /**
          * A [ComponentTranslator] that parses literal text as MiniMessage using [miniMessage].
          * Defaults to [translator]'s registered [TagRegistry] tags merged with the standard
