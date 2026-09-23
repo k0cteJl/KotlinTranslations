@@ -22,18 +22,22 @@ import net.kyori.adventure.text.TextComponent
  * still pass a fully built [Component] - e.g. a hover event on a player's name); anything
  * else (a `String`, a number, ...) is wrapped in [Component.text] automatically via
  * [toComponentLike], so callers don't have to write that wrapping themselves.
+ *
+ * The result has italic explicitly turned off by default - see [withoutDefaultItalic] - so it
+ * renders correctly when used as an item's display name/lore, not italic unless asked for.
  */
 internal fun renderWithArguments(
     segments: List<MessageSegment>,
     deserializer: ComponentDeserializer,
     args: Array<out Any?>
 ): Component {
-    if (segments.none { it is MessageSegment.Placeholder }) {
+    val result = if (segments.none { it is MessageSegment.Placeholder }) {
         val literal = segments.joinToString("") { (it as MessageSegment.Literal).text }
-        return deserializer.deserialize(literal)
+        deserializer.deserialize(literal)
+    } else {
+        spliceArguments(deserializer.deserialize(buildMarkedRaw(segments)), args)
     }
-    val marked = buildMarkedRaw(segments)
-    return spliceArguments(deserializer.deserialize(marked), args)
+    return result.withoutDefaultItalic()
 }
 
 private const val MARKER_OPEN = ''

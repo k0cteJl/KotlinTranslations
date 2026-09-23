@@ -173,6 +173,11 @@ A genuinely self-closed tag (`<red/>`) still means an empty, zero-width scope, s
 other MiniMessage string - it colors nothing, since there's nothing between its open and close.
 Close the tag explicitly (`<red>Hello</red>, {0}!`) to scope color to part of a line.
 
+Every rendered component has italic explicitly turned off by default. Minecraft's client
+otherwise renders a component used as an item's display name/lore in italics for no reason
+related to the `.lang` value's markup - this is a fallback, not an override, so an explicit
+`<italic>`/`<i>` tag (or legacy `&o`) in the source still applies normally.
+
 By default literal text is parsed as MiniMessage. For plugins/configs still using legacy
 `&`-color codes, use `ComponentTranslator.legacy(...)` instead:
 

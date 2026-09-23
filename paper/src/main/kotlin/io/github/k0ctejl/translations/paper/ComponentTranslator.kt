@@ -27,6 +27,12 @@ import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
  * The MiniMessage-based constructors ([ComponentTranslator] itself and [miniMessage]) resolve
  * any tags [translator] has registered via [TagRegistry]/[Translator.loadTags] and merge them
  * with MiniMessage's built-in tags, once at construction time - not on every render.
+ *
+ * Every rendered [Component] has italic explicitly turned off by default (a fallback, not an
+ * override - see [withoutDefaultItalic]), since Minecraft's client otherwise renders a component
+ * used as an item's display name/lore in italics for no reason related to anything the `.lang`
+ * value's markup asked for. An explicit `<italic>`/`<i>` tag (or legacy `&o`) in the source still
+ * applies normally.
  */
 public class ComponentTranslator @JvmOverloads constructor(
     /** The underlying [Translator] this renderer wraps, e.g. for [Translator.isLoaded] checks. */
@@ -43,7 +49,7 @@ public class ComponentTranslator @JvmOverloads constructor(
 
     /** Renders [key] for [locale], falling back to [Translator.defaultLocale] and finally to plain text. */
     public fun renderFor(locale: String, key: String, vararg args: Any?): Component {
-        val template = translator.template(key, locale) ?: return Component.text(key)
+        val template = translator.template(key, locale) ?: return Component.text(key).withoutDefaultItalic()
         return renderWithArguments(template.segments, deserializer, args)
     }
 
@@ -56,7 +62,7 @@ public class ComponentTranslator @JvmOverloads constructor(
 
     /** Same as [renderLines], but for [locale], falling back to [Translator.defaultLocale] like [renderFor]. */
     public fun renderLinesFor(locale: String, key: String, vararg args: Any?): List<Component> {
-        val template = translator.template(key, locale) ?: return listOf(Component.text(key))
+        val template = translator.template(key, locale) ?: return listOf(Component.text(key).withoutDefaultItalic())
         return template.lines.map { lineSegments -> renderWithArguments(lineSegments, deserializer, args) }
     }
 
