@@ -17,11 +17,16 @@ import net.kyori.adventure.text.TextComponent
  * color/style across the whole template exactly like it would for any other string, then
  * [spliceArguments] walks the resulting tree and swaps each marker back out for the real
  * argument component, inheriting whatever style ended up wrapping that marker.
+ *
+ * Each argument in [args] is used as-is if it's already a [ComponentLike] (so a caller can
+ * still pass a fully built [Component] - e.g. a hover event on a player's name); anything
+ * else (a `String`, a number, ...) is wrapped in [Component.text] automatically via
+ * [toComponentLike], so callers don't have to write that wrapping themselves.
  */
 internal fun renderWithArguments(
     segments: List<MessageSegment>,
     deserializer: ComponentDeserializer,
-    args: Array<out ComponentLike>
+    args: Array<out Any?>
 ): Component {
     if (segments.none { it is MessageSegment.Placeholder }) {
         val literal = segments.joinToString("") { (it as MessageSegment.Literal).text }
@@ -76,7 +81,7 @@ private fun splitMarked(text: String): List<MarkedPiece> {
     return pieces
 }
 
-private fun spliceArguments(component: Component, args: Array<out ComponentLike>): Component {
+private fun spliceArguments(component: Component, args: Array<out Any?>): Component {
     val originalChildren = component.children()
     val rebuiltChildren = if (originalChildren.isEmpty()) originalChildren else originalChildren.map { spliceArguments(it, args) }
 
@@ -85,7 +90,7 @@ private fun spliceArguments(component: Component, args: Array<out ComponentLike>
         for (piece in splitMarked(component.content())) {
             when (piece) {
                 is MarkedPiece.Text -> builder.append(Component.text(piece.value))
-                is MarkedPiece.Arg -> args.getOrNull(piece.index)?.let { builder.append(it) }
+                is MarkedPiece.Arg -> args.getOrNull(piece.index)?.let { builder.append(it.toComponentLike()) }
             }
         }
         for (child in rebuiltChildren) builder.append(child)
@@ -94,3 +99,6 @@ private fun spliceArguments(component: Component, args: Array<out ComponentLike>
 
     return if (rebuiltChildren !== originalChildren) component.children(rebuiltChildren) else component
 }
+
+/** [this] as-is if it's already a [ComponentLike], otherwise wrapped in [Component.text]. */
+private fun Any?.toComponentLike(): ComponentLike = if (this is ComponentLike) this else Component.text(this.toString())

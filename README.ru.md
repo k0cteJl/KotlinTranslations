@@ -145,15 +145,22 @@ val translator = Translator.create("en")
 val messages = ComponentTranslator(translator) // по умолчанию рендерит литералы как MiniMessage
 
 // greeting="Hello, <gold>{0}</gold>! You have {1} messages."
-player.sendTranslation(messages, "greeting", Component.text(player.name), Component.text(unread))
+player.sendTranslation(messages, "greeting", player.name, unreadCount)
 
 // с локалью конкретного игрока
-player.sendTranslationFor(messages, player.resolveLocale(translator), "greeting", Component.text(player.name))
+player.sendTranslationFor(messages, player.resolveLocale(translator), "greeting", player.name)
 ```
 
-Плейсхолдеры принимают `ComponentLike`, поэтому вместо простой строки можно передать
-полноценный компонент — например, имя игрока с hover-событием — и оно сохранится при подстановке
-(собственный явный стиль аргумента всё равно переопределяет фоновый стиль от окружающих тегов).
+Аргумент плейсхолдера автоматически оборачивается в текстовый компонент — `String`, число,
+что угодно, что ещё не компонент, — так что писать `Component.text(...)` самим для обычного
+случая не нужно. Передайте настоящий `Component`/`ComponentLike`, когда он действительно нужен
+— например, имя игрока с hover-событием, — он вставится как есть и сохранится при подстановке
+(собственный явный стиль аргумента всё равно переопределяет фоновый стиль от окружающих тегов):
+
+```kotlin
+val hoverName = Component.text(player.name).hoverEvent(HoverEvent.showText(Component.text(player.uniqueId.toString())))
+player.sendTranslation(messages, "greeting", hoverName, unreadCount)
+```
 
 Весь шаблон разбирается парсером за один проход, а не по кускам, поэтому незакрытый
 цветовой/стилевой тег продолжает действовать и на плейсхолдер, идущий после него:
@@ -182,7 +189,7 @@ val messages = ComponentTranslator.miniMessage(translator, myMiniMessageInstance
 
 ```kotlin
 // motd="Welcome, <gold>{0}</gold>!\nType /help to get started."
-player.sendTranslationLines(messages, "motd", Component.text(player.name))
+player.sendTranslationLines(messages, "motd", player.name)
 ```
 
 Как и обычный `Translator`, `ComponentTranslator` можно зарегистрировать дефолтным, чтобы
@@ -192,11 +199,11 @@ player.sendTranslationLines(messages, "motd", Component.text(player.name))
 ComponentTranslator(translator).makeDefault()
 
 // нигде ниже нет аргумента ComponentTranslator:
-audience.sendTranslation("greeting", Component.text(player.name))
-audience.sendTranslationFor("ru", "greeting", Component.text(player.name))
-player.sendTranslation("greeting", Component.text(player.name))   // по-прежнему учитывает локаль через resolveLocale
-player.render("greeting", Component.text(player.name))
-player.translate("greeting", player.name)                         // использует Translator.default, не ComponentTranslator.default
+audience.sendTranslation("greeting", player.name)
+audience.sendTranslationFor("ru", "greeting", player.name)
+player.sendTranslation("greeting", player.name)   // по-прежнему учитывает локаль через resolveLocale
+player.render("greeting", player.name)
+player.translate("greeting", player.name)         // использует Translator.default, не ComponentTranslator.default
 ```
 
 `ComponentTranslator.requireDefault()` выбрасывает `IllegalStateException`, если `makeDefault()`
@@ -256,13 +263,13 @@ player.resolveLocale(translator)       // override -> язык клиента ->
 `messages`, ключ и аргументы плейсхолдеров:
 
 ```kotlin
-player.sendTranslation(messages, "greeting", Component.text(player.name))       // рендерит и отправляет Component
-player.sendTranslationLines(messages, "motd", Component.text(player.name))      // ...отдельным сообщением на строку
+player.sendTranslation(messages, "greeting", player.name)       // рендерит и отправляет Component
+player.sendTranslationLines(messages, "motd", player.name)      // ...отдельным сообщением на строку
 
-player.render(messages, "greeting", Component.text(player.name))                // рендерит без отправки —
-player.renderLines(messages, "motd", Component.text(player.name))               // например, для display name предмета
+player.render(messages, "greeting", player.name)                // рендерит без отправки —
+player.renderLines(messages, "motd", player.name)                // например, для display name предмета
 
-player.translate(translator, "greeting", player.name)                           // обычная String, без Component вообще
+player.translate(translator, "greeting", player.name)            // обычная String, без Component вообще
 player.translateLines(translator, "motd", player.name)
 ```
 
@@ -278,10 +285,10 @@ Override хранится только в памяти и не пережива�
 [зарегистрирован дефолтный инстанс](#инстанс-по-умолчанию):
 
 ```kotlin
-player.sendTranslation("greeting", Component.text(player.name))   // ComponentTranslator.default
-player.render("greeting", Component.text(player.name))            // ComponentTranslator.default
-player.translate("greeting", player.name)                         // Translator.default
-player.resolveLocale()                                             // Translator.default
+player.sendTranslation("greeting", player.name)   // ComponentTranslator.default
+player.render("greeting", player.name)            // ComponentTranslator.default
+player.translate("greeting", player.name)         // Translator.default
+player.resolveLocale()                             // Translator.default
 ```
 
 ## Сборка

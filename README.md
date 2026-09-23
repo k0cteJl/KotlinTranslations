@@ -144,15 +144,22 @@ val translator = Translator.create("en")
 val messages = ComponentTranslator(translator) // renders literals as MiniMessage by default
 
 // greeting="Hello, <gold>{0}</gold>! You have {1} messages."
-player.sendTranslation(messages, "greeting", Component.text(player.name), Component.text(unread))
+player.sendTranslation(messages, "greeting", player.name, unreadCount)
 
 // using this player's own locale
-player.sendTranslationFor(messages, player.resolveLocale(translator), "greeting", Component.text(player.name))
+player.sendTranslationFor(messages, player.resolveLocale(translator), "greeting", player.name)
 ```
 
-Placeholders accept `ComponentLike`, so instead of a plain string you can pass a fully built
-component — e.g. a player's name with a hover event — and it survives the substitution intact
-(an argument's own explicit style still overrides ambient style from surrounding tags).
+A placeholder argument is wrapped in a text component automatically - a `String`, a number,
+anything that isn't already a component - so you don't have to write `Component.text(...)`
+yourself for the common case. Pass an actual `Component`/`ComponentLike` instead when you need
+one, e.g. a player's name with a hover event, and it's inserted as-is and survives the
+substitution intact (its own explicit style still overrides ambient style from surrounding tags):
+
+```kotlin
+val hoverName = Component.text(player.name).hoverEvent(HoverEvent.showText(Component.text(player.uniqueId.toString())))
+player.sendTranslation(messages, "greeting", hoverName, unreadCount)
+```
 
 A whole template is deserialized in one pass rather than segment by segment, so a color/style
 tag left open still applies to a placeholder that follows it:
@@ -180,7 +187,7 @@ and `sendTranslationLines` sends them as separate chat messages:
 
 ```kotlin
 // motd="Welcome, <gold>{0}</gold>!\nType /help to get started."
-player.sendTranslationLines(messages, "motd", Component.text(player.name))
+player.sendTranslationLines(messages, "motd", player.name)
 ```
 
 Like the core `Translator`, a `ComponentTranslator` can be registered as the default so
@@ -190,11 +197,11 @@ Like the core `Translator`, a `ComponentTranslator` can be registered as the def
 ComponentTranslator(translator).makeDefault()
 
 // no ComponentTranslator argument anywhere below:
-audience.sendTranslation("greeting", Component.text(player.name))
-audience.sendTranslationFor("ru", "greeting", Component.text(player.name))
-player.sendTranslation("greeting", Component.text(player.name))   // still locale-aware via resolveLocale
-player.render("greeting", Component.text(player.name))
-player.translate("greeting", player.name)                         // uses Translator.default, not ComponentTranslator.default
+audience.sendTranslation("greeting", player.name)
+audience.sendTranslationFor("ru", "greeting", player.name)
+player.sendTranslation("greeting", player.name)   // still locale-aware via resolveLocale
+player.render("greeting", player.name)
+player.translate("greeting", player.name)         // uses Translator.default, not ComponentTranslator.default
 ```
 
 `ComponentTranslator.requireDefault()` throws `IllegalStateException` if nothing has called
@@ -252,13 +259,13 @@ none of them need a locale argument - `translator`/`messages` is all they take b
 and placeholder args:
 
 ```kotlin
-player.sendTranslation(messages, "greeting", Component.text(player.name))       // renders + sends a Component
-player.sendTranslationLines(messages, "motd", Component.text(player.name))      // ... one message per line
+player.sendTranslation(messages, "greeting", player.name)       // renders + sends a Component
+player.sendTranslationLines(messages, "motd", player.name)      // ... one message per line
 
-player.render(messages, "greeting", Component.text(player.name))                // renders without sending -
-player.renderLines(messages, "motd", Component.text(player.name))               // e.g. for an item's display name
+player.render(messages, "greeting", player.name)                // renders without sending -
+player.renderLines(messages, "motd", player.name)                // e.g. for an item's display name
 
-player.translate(translator, "greeting", player.name)                           // plain String, no Component at all
+player.translate(translator, "greeting", player.name)            // plain String, no Component at all
 player.translateLines(translator, "motd", player.name)
 ```
 
@@ -274,10 +281,10 @@ Every one of them also drops the `translator`/`messages` argument entirely once
 [a default instance is registered](#default-instance):
 
 ```kotlin
-player.sendTranslation("greeting", Component.text(player.name))   // ComponentTranslator.default
-player.render("greeting", Component.text(player.name))            // ComponentTranslator.default
-player.translate("greeting", player.name)                         // Translator.default
-player.resolveLocale()                                             // Translator.default
+player.sendTranslation("greeting", player.name)   // ComponentTranslator.default
+player.render("greeting", player.name)            // ComponentTranslator.default
+player.translate("greeting", player.name)         // Translator.default
+player.resolveLocale()                             // Translator.default
 ```
 
 ## Building

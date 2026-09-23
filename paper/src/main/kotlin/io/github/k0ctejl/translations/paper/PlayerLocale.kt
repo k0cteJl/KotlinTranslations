@@ -4,7 +4,6 @@ package io.github.k0ctejl.translations.paper
 
 import io.github.k0ctejl.translations.Translator
 import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.ComponentLike
 import org.bukkit.entity.Player
 
 /**
@@ -37,16 +36,17 @@ public fun Player.resolveLocale(): String = resolveLocale(Translator.requireDefa
 
 /**
  * Renders [key] via [translator] using this player's [resolveLocale] (their [setLocale]
- * override, or else their client's language) and sends it. A statically-typed [Player]
+ * override, or else their client's language) and sends it. Each of [args] is wrapped in a text
+ * component automatically unless it's already a `ComponentLike`. A statically-typed [Player]
  * reference resolves to this overload instead of the locale-agnostic
  * `Audience.sendTranslation` - use that one directly (e.g. via an `Audience`-typed
  * variable) if you always want [Translator.defaultLocale] regardless of the player.
  */
-public fun Player.sendTranslation(translator: ComponentTranslator, key: String, vararg args: ComponentLike): Unit =
+public fun Player.sendTranslation(translator: ComponentTranslator, key: String, vararg args: Any?): Unit =
     sendMessage(render(translator, key, *args))
 
 /** Same as [sendTranslation], but for a multi-line value (see [ComponentTranslator.renderLines]). */
-public fun Player.sendTranslationLines(translator: ComponentTranslator, key: String, vararg args: ComponentLike) {
+public fun Player.sendTranslationLines(translator: ComponentTranslator, key: String, vararg args: Any?) {
     for (line in renderLines(translator, key, *args)) sendMessage(line)
 }
 
@@ -55,11 +55,11 @@ public fun Player.sendTranslationLines(translator: ComponentTranslator, key: Str
  * for anything other than a chat message, e.g. an item's display name or a GUI title. See
  * [sendTranslation] to render and send in one call.
  */
-public fun Player.render(translator: ComponentTranslator, key: String, vararg args: ComponentLike): Component =
+public fun Player.render(translator: ComponentTranslator, key: String, vararg args: Any?): Component =
     translator.renderFor(resolveLocale(translator.translator), key, *args)
 
 /** Same as [render], but for a multi-line value (see [ComponentTranslator.renderLines]). */
-public fun Player.renderLines(translator: ComponentTranslator, key: String, vararg args: ComponentLike): List<Component> =
+public fun Player.renderLines(translator: ComponentTranslator, key: String, vararg args: Any?): List<Component> =
     translator.renderLinesFor(resolveLocale(translator.translator), key, *args)
 
 /** Translates [key] via [translator] using this player's [resolveLocale], as a plain string. */
@@ -71,20 +71,20 @@ public fun Player.translateLines(translator: Translator, key: String, vararg arg
     translator.translateLinesFor(resolveLocale(translator), key, *args)
 
 /** Same as [sendTranslation], but using [ComponentTranslator.default] instead of taking one explicitly. */
-public fun Player.sendTranslation(key: String, vararg args: ComponentLike): Unit =
+public fun Player.sendTranslation(key: String, vararg args: Any?): Unit =
     sendTranslation(ComponentTranslator.requireDefault(), key, *args)
 
 /** Same as [sendTranslationLines], but using [ComponentTranslator.default]. */
-public fun Player.sendTranslationLines(key: String, vararg args: ComponentLike) {
+public fun Player.sendTranslationLines(key: String, vararg args: Any?) {
     sendTranslationLines(ComponentTranslator.requireDefault(), key, *args)
 }
 
 /** Same as [render], but using [ComponentTranslator.default]. */
-public fun Player.render(key: String, vararg args: ComponentLike): Component =
+public fun Player.render(key: String, vararg args: Any?): Component =
     render(ComponentTranslator.requireDefault(), key, *args)
 
 /** Same as [renderLines], but using [ComponentTranslator.default]. */
-public fun Player.renderLines(key: String, vararg args: ComponentLike): List<Component> =
+public fun Player.renderLines(key: String, vararg args: Any?): List<Component> =
     renderLines(ComponentTranslator.requireDefault(), key, *args)
 
 /** Same as [translate], but using [Translator.default] instead of taking one explicitly. */

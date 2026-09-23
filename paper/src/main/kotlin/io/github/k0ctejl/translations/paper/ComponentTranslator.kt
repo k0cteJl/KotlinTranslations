@@ -17,11 +17,12 @@ import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
  * MiniMessage by default (`<red>...</red>`, `<hover:...>`, ...), or legacy `&`-codes via
  * [legacy] - in a single pass rather than segment by segment, so a color/style tag that isn't
  * explicitly closed still applies to a placeholder that follows it, e.g. `"<red>{0}"` colors the
- * inserted argument red, not just the literal text before it. Placeholder arguments are inserted
- * as-is via [ComponentLike], so callers can pass a fully built [Component] - e.g. a player's
- * display name with its own hover event - instead of a plain string, and it survives the
- * substitution untouched (an argument's own explicit style still overrides ambient style from
- * surrounding tags).
+ * inserted argument red, not just the literal text before it. A placeholder argument that's
+ * already a [ComponentLike] is inserted as-is - e.g. a player's display name with its own hover
+ * event survives the substitution untouched (its own explicit style still overrides ambient
+ * style from surrounding tags) - anything else (a `String`, a number, ...) is wrapped in
+ * [Component.text] automatically, so callers don't have to do that themselves for the common
+ * case of a plain value.
  *
  * The MiniMessage-based constructors ([ComponentTranslator] itself and [miniMessage]) resolve
  * any tags [translator] has registered via [TagRegistry]/[Translator.loadTags] and merge them
@@ -37,11 +38,11 @@ public class ComponentTranslator @JvmOverloads constructor(
 ) {
 
     /** Renders [key] using [Translator.defaultLocale]. Returns [key] as plain text if undefined. */
-    public fun render(key: String, vararg args: ComponentLike): Component =
+    public fun render(key: String, vararg args: Any?): Component =
         renderFor(translator.defaultLocale, key, *args)
 
     /** Renders [key] for [locale], falling back to [Translator.defaultLocale] and finally to plain text. */
-    public fun renderFor(locale: String, key: String, vararg args: ComponentLike): Component {
+    public fun renderFor(locale: String, key: String, vararg args: Any?): Component {
         val template = translator.template(key, locale) ?: return Component.text(key)
         return renderWithArguments(template.segments, deserializer, args)
     }
@@ -50,11 +51,11 @@ public class ComponentTranslator @JvmOverloads constructor(
      * Renders each line of [key] (see [Translator.translateLines]) independently using
      * [Translator.defaultLocale]. Returns `listOf(Component.text(key))` if undefined.
      */
-    public fun renderLines(key: String, vararg args: ComponentLike): List<Component> =
+    public fun renderLines(key: String, vararg args: Any?): List<Component> =
         renderLinesFor(translator.defaultLocale, key, *args)
 
     /** Same as [renderLines], but for [locale], falling back to [Translator.defaultLocale] like [renderFor]. */
-    public fun renderLinesFor(locale: String, key: String, vararg args: ComponentLike): List<Component> {
+    public fun renderLinesFor(locale: String, key: String, vararg args: Any?): List<Component> {
         val template = translator.template(key, locale) ?: return listOf(Component.text(key))
         return template.lines.map { lineSegments -> renderWithArguments(lineSegments, deserializer, args) }
     }
